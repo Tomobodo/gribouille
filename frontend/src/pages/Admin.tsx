@@ -19,6 +19,7 @@ export const Admin = () => {
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
   const [options, setOptions] = useState<any[]>([]);
+  const [allVoters, setAllVoters] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'deleting'>('idle');
   const [editingDate, setEditingDate] = useState<number | null>(null);
@@ -49,7 +50,8 @@ export const Admin = () => {
       await apiRequest(`/events/${id}/admin/login`, { method: 'POST', body: JSON.stringify({ password }) });
       const data = await apiRequest(`/events/${id}`);
       setTitle(data.title); setDescription(data.description || ''); setAddress(data.address || '');
-      setOptions(data.options.map((o: any) => ({ date: o.date, start_time: o.start_time })));
+      setOptions(data.options.map((o: any) => ({ ...o })));
+      setAllVoters(Array.from(new Set(data.options.flatMap((o: any) => o.votes))));
       setIsAuthenticated(true);
     } catch { setError('Mot de passe incorrect 😬'); }
     finally { setStatus('idle'); }
@@ -61,16 +63,21 @@ export const Admin = () => {
     const last = options.length > 0 ? options[options.length - 1] : null;
     const baseDate = last ? new Date(last.date + 'T00:00:00') : new Date();
     const time = last?.start_time ?? '19:00';
-    setOptions(sortOptions([...options, { date: format(addDays(baseDate, 1), 'yyyy-MM-dd'), start_time: time }]));
+    setOptions(sortOptions([...options, { date: format(addDays(baseDate, 1), 'yyyy-MM-dd'), start_time: time, votes: [] }]));
   };
 
   const addOptionRelativeTo = (i: number, days: number) => {
     const base = new Date(options[i].date + 'T00:00:00');
-    setOptions(sortOptions([...options, { date: format(addDays(base, days), 'yyyy-MM-dd'), start_time: options[i].start_time }]));
+    setOptions(sortOptions([...options, { date: format(addDays(base, days), 'yyyy-MM-dd'), start_time: options[i].start_time, votes: [] }]));
   };
 
   const duplicateOption = (i: number) => {
-    setOptions(sortOptions([...options, { ...options[i] }]));
+    setOptions(sortOptions([...options, { ...options[i], votes: [] }]));
+  };
+
+  const removeVoter = (voterName: string) => {
+    setOptions(options.map(opt => ({ ...opt, votes: opt.votes.filter((v: string) => v !== voterName) })));
+    setAllVoters(allVoters.filter(v => v !== voterName));
   };
 
   const updateOption = (i: number, f: string, v: string) => { const n = [...options]; n[i][f] = v; setOptions(sortOptions(n)); };
@@ -224,6 +231,20 @@ export const Admin = () => {
                   <div className="flex md:hidden gap-1 px-3 pb-2 border-t border-trait pt-2">
                     {rowActionButtons(i)}
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="pt-6 mt-2 border-t-2 border-trait">
+            <span className="handwriting text-xl text-encre mb-4 block">Participants</span>
+            <div className="flex flex-wrap gap-2">
+              {allVoters.length === 0 && <span className="text-crayon">Aucun participant</span>}
+              {allVoters.map(voter => (
+                <div key={voter} className="flex items-center gap-2 bg-papier border border-trait px-3 py-1.5">
+                  <span className="text-encre">{voter}</span>
+                  <button onClick={() => removeVoter(voter)} className="text-crayon hover:text-rouge transition-colors">
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               ))}
             </div>
