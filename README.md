@@ -1,37 +1,46 @@
 # Gribouille
 
-Un clone de Doodle simple, rapide et sans abonnement, idéal pour organiser tes sorties entre potes en 5 minutes.
+A simple, fast, and subscription-free tool, perfect for organizing outings with friends in 5 minutes.
+
+## Why this project?
+Developed to meet a specific need for flexibility—allowing an unlimited number of date suggestions—without the subscription constraints found in mainstream services. The architecture is fully serverless, leveraging Firebase for minimal maintenance.
 
 ## Features
-- **Accès Libre** : Pas besoin de compte, pas de pub, pas d'abonnement.
-- **Gestion Privée** : Mot de passe organisateur par événement pour modifier, éditer ou supprimer tes sondages.
-- **Vote Flexible** : Choix illimité de dates et heures.
-- **Intégration Maps** : L'adresse renvoie directement sur Google Maps.
+- **Open Access**: No account required, no ads, no subscriptions.
+- **Private Management**: Organizer password per event to modify, edit, or delete polls.
+- **Flexible Voting**: Unlimited choice of dates and times.
+- **Maps Integration**: Addresses link directly to Google Maps.
 
-## Installation avec Docker
+## Architecture
+This project is a full-stack web application deployed on **Firebase**.
 
-1. Assurez-vous d'avoir Docker et Docker Compose installés.
-2. Lancez le projet :
+- **Frontend**: React with TypeScript and Vite.
+- **Backend**: Firebase Cloud Functions.
+- **Database**: Firestore.
+
+## Local Development
+
+### Prerequisites
+- Node.js (LTS version recommended)
+- Firebase CLI (`npm install -g firebase-tools`)
+
+### Setup
+1. Clone the repository.
+2. Install dependencies:
    ```bash
-   docker compose up -d
+   cd frontend && npm install
+   cd ../functions && npm install
    ```
-3. Accédez au site sur `http://localhost:8080`.
 
-## Développement local
+### Running
+Start the project locally using the Firebase emulators:
 
-Le projet est configuré en mode **Hot Reload** pour le développement.
-
-### Backend
 ```bash
-cd backend
-npm install
-npm run dev
+firebase emulators:start
 ```
 
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Accès sur `http://localhost:8080` (le frontend proxyifie les appels API vers le port 3001 du backend).
+Access the site at the URL provided by the emulators (usually `http://localhost:5173`).
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
