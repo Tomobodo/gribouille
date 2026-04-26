@@ -19,7 +19,7 @@ export const Dashboard = () => {
                 Trouve la date qui convient<br />
                 <span className="text-rouge underline decoration-wavy decoration-rouge/40">à tout le monde.</span>
               </h1>
-              <p className="text-gris-500 text-base leading-relaxed mb-8 text-stone-500">
+              <p className="text-gris-500 text-base leading-relaxed mb-8 text-crayon">
                 Sans compte, sans pub, sans prise de tête. Tu proposes des dates, tes amis votent, la meilleure s'impose.
               </p>
               <Button onClick={() => navigate('/create')} className="text-xl px-8 py-3">
@@ -31,8 +31,8 @@ export const Dashboard = () => {
             <div className="hidden md:block">
               <svg viewBox="0 0 400 340" className="w-full max-w-md mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
                 {/* Calendar sketch */}
-                <rect x="60" y="40" width="280" height="260" rx="4" stroke="#5c4a44" strokeWidth="3" fill="white"/>
-                <rect x="60" y="40" width="280" height="55" rx="4" stroke="#5c4a44" strokeWidth="3" fill="#5c4a44"/>
+                <rect x="60" y="40" width="280" height="260" rx="4" stroke="#1a3353" strokeWidth="3" fill="white"/>
+                <rect x="60" y="40" width="280" height="55" rx="4" stroke="#1a3353" strokeWidth="3" fill="#1a3353"/>
                 {/* Calendar header text */}
                 <text x="200" y="76" textAnchor="middle" fill="#fef9f0" fontSize="18" fontFamily="Caveat, cursive" fontWeight="700">Quand on se voit ?</text>
                 {/* Grid lines */}
@@ -56,7 +56,7 @@ export const Dashboard = () => {
                 <path d="M 355 205 L 360 210 L 363 202" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
                 {/* Stars */}
                 <text x="35" y="120" fill="#dc2626" fontSize="20" fontFamily="Caveat, cursive">✦</text>
-                <text x="355" y="80" fill="#5c4a44" fontSize="14" fontFamily="Caveat, cursive">✦</text>
+                <text x="355" y="80" fill="#1a3353" fontSize="14" fontFamily="Caveat, cursive">✦</text>
                 <text x="20" y="240" fill="#d6cfc4" fontSize="16" fontFamily="Caveat, cursive">✦</text>
               </svg>
             </div>
@@ -78,7 +78,7 @@ export const Dashboard = () => {
                   <Icon size={26} className="text-encre flex-shrink-0" strokeWidth={1.5} />
                 </div>
                 <h3 className="handwriting text-2xl text-encre mb-2">{title}</h3>
-                <p className="text-stone-500 text-sm leading-relaxed">{body}</p>
+                <p className="text-crayon text-sm leading-relaxed">{body}</p>
               </div>
             ))}
           </div>

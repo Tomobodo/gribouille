@@ -11,7 +11,7 @@ const db = getFirestore();
 const app = express();
 
 app.use(cors({ origin: true }));
-app.use(express.json({ limit: '16kb' }));
+app.use(express.json({ limit: '1mb' }));
 
 // --- Validation ---
 
@@ -23,7 +23,6 @@ function validateEvent(body: any): string | null {
   if (!body.organizer_password || body.organizer_password.length < 4) return 'mot de passe requis (min 4 caractères)';
   if (body.organizer_password.length > 100) return 'mot de passe trop long';
   if (!Array.isArray(body.options) || body.options.length === 0) return 'au moins une option requise';
-  if (body.options.length > 30) return 'trop d\'options (max 30)';
   for (const opt of body.options) {
     if (!opt.date || typeof opt.date !== 'string') return 'date invalide dans les options';
   }
@@ -199,6 +198,67 @@ app.delete('/api/events/:id', async (req, res) => {
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// --- Share page (OG meta + redirect) ---
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function stripMarkdown(s: string): string {
+  return s.replace(/[#*_`\[\]()>~]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+app.get('/s/:id', async (req, res) => {
+  const { id } = req.params;
+  const host = req.get('x-forwarded-host') || req.get('host') || '';
+  const proto = (req.get('x-forwarded-proto') || req.protocol || 'https').split(',')[0].trim();
+  const base = `${proto}://${host}`;
+  const eventUrl = `${base}/event/${id}`;
+
+  try {
+    const eventSnap = await db.collection('events').doc(id).get();
+    if (!eventSnap.exists) { res.redirect(302, '/'); return; }
+
+    const data = eventSnap.data()!;
+    const title = data.title as string;
+    const address = (data.address as string) || '';
+    const rawDesc = stripMarkdown((data.description as string) || '');
+    const description = rawDesc.slice(0, 200) || (address ? `${address} · ` : '') + 'Vote pour la date qui te convient !';
+    const ogTitle = `${title} — Gribouille`;
+
+    const html = `<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escHtml(ogTitle)}</title>
+  <meta name="description" content="${escHtml(description)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Gribouille" />
+  <meta property="og:url" content="${escHtml(eventUrl)}" />
+  <meta property="og:title" content="${escHtml(ogTitle)}" />
+  <meta property="og:description" content="${escHtml(description)}" />
+  <meta property="og:locale" content="fr_FR" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="${escHtml(ogTitle)}" />
+  <meta name="twitter:description" content="${escHtml(description)}" />
+  <link rel="canonical" href="${escHtml(eventUrl)}" />
+  <meta http-equiv="refresh" content="0;url=${escHtml(eventUrl)}" />
+</head>
+<body>
+  <script>window.location.replace(${JSON.stringify(eventUrl)});</script>
+  <a href="${escHtml(eventUrl)}">${escHtml(title)} →</a>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    res.send(html);
+  } catch {
+    res.redirect(302, '/');
   }
 });
 

@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { usePageMeta } from '../hooks/usePageMeta';
+import confetti from 'canvas-confetti';
 import { useParams, Link } from 'react-router-dom';
 import { MapPin, Check, Share2, Settings } from 'lucide-react';
 import { apiRequest } from '../utils/api';
@@ -6,6 +8,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Navbar } from '../components/ui/Navbar';
 import { Button } from '../components/ui/Button';
+import Markdown from 'react-markdown';
 
 interface Option { id: string; date: string; start_time: string; votes: string[]; }
 interface Event { id: string; title: string; description: string; address: string; options: Option[]; }
@@ -20,6 +23,15 @@ export const EventView = () => {
   const [copied, setCopied] = useState(false);
   const [voted, setVoted] = useState(false);
 
+  usePageMeta({
+    title: event?.title,
+    description: event?.description
+      ? event.description.replace(/[#*_`\[\]]/g, '').slice(0, 200)
+      : event
+        ? `${event.options?.length ?? 0} créneau${(event.options?.length ?? 0) > 1 ? 'x' : ''} proposé${(event.options?.length ?? 0) > 1 ? 's' : ''}${event.address ? ` · ${event.address}` : ''}. Vote pour la date qui te convient !`
+        : undefined,
+  });
+
   const fetchEvent = async () => {
     try { setEvent(await apiRequest(`/events/${id}`)); }
     catch (err: any) { setError(err.message); }
@@ -28,8 +40,24 @@ export const EventView = () => {
 
   useEffect(() => { fetchEvent(); }, [id]);
 
-  const toggleOption = (optId: string) =>
+  const toggleOption = (optId: string, e: React.MouseEvent) => {
+    const isSelecting = !selectedOptions.includes(optId);
     setSelectedOptions(prev => prev.includes(optId) ? prev.filter(i => i !== optId) : [...prev, optId]);
+    if (isSelecting) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const x = (rect.left + rect.width / 2) / window.innerWidth;
+      const y = (rect.top + rect.height / 2) / window.innerHeight;
+      confetti({
+        particleCount: 60,
+        spread: 70,
+        origin: { x, y },
+        colors: ['#2563eb', '#1a3353', '#93c5fd', '#ffffff', '#dce8f8'],
+        shapes: ['square', 'circle'],
+        scalar: 0.9,
+        ticks: 120,
+      });
+    }
+  };
 
   const handleVote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +69,12 @@ export const EventView = () => {
     } catch (err: any) { setError(err.message); }
   };
 
-  const copyLink = () => { navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 2000); };
+  const copyLink = () => {
+    const shareUrl = `${window.location.origin}/s/${id}`;
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-papier"><Navbar />
@@ -53,15 +86,16 @@ export const EventView = () => {
     <div className="min-h-screen bg-papier"><Navbar />
       <div className="max-w-md mx-auto py-32 px-6 text-center">
         <p className="handwriting text-4xl text-rouge mb-3">Introuvable 🤔</p>
-        <p className="text-stone-500 mb-6">Cet événement n'existe pas ou a été supprimé.</p>
+        <p className="text-crayon mb-6">Cet événement n'existe pas ou a été supprimé.</p>
         <Link to="/"><Button variant="secondary">Retour à l'accueil</Button></Link>
       </div>
     </div>
   );
 
   const mapsUrl = event.address?.startsWith('http') ? event.address : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address || '')}`;
-  const allVoters = Array.from(new Set(event.options.flatMap(o => o.votes)));
-  const maxVotes = Math.max(...event.options.map(o => o.votes.length), 0);
+  const options = [...event.options].sort((a, b) => new Date(`${a.date}T${a.start_time}`).getTime() - new Date(`${b.date}T${b.start_time}`).getTime());
+  const allVoters = Array.from(new Set(options.flatMap(o => o.votes)));
+  const maxVotes = Math.max(...options.map(o => o.votes.length), 0);
 
   return (
     <div className="min-h-screen bg-papier pb-20">
@@ -73,7 +107,11 @@ export const EventView = () => {
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div className="flex-1">
               <h1 className="handwriting text-5xl md:text-6xl text-encre leading-tight mb-3">{event.title}</h1>
-              {event.description && <p className="text-stone-500 leading-relaxed mb-3">{event.description}</p>}
+              {event.description && (
+                <div className="text-crayon leading-relaxed mb-3 [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:text-encre [&_em]:italic [&_ul]:list-disc [&_ul]:ml-4 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:ml-4 [&_ol]:mb-2 [&_li]:mb-0.5 [&_a]:text-rouge [&_a]:underline [&_h1]:handwriting [&_h2]:handwriting [&_code]:bg-papier-fonce [&_code]:px-1 [&_code]:text-sm [&_code]:font-mono">
+                  <Markdown>{event.description}</Markdown>
+                </div>
+              )}
               {event.address && (
                 <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-rouge hover:underline">
                   <MapPin size={14} /> {event.address}
@@ -81,11 +119,11 @@ export const EventView = () => {
               )}
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <button onClick={copyLink} className="handwriting text-base text-stone-500 border-2 border-trait px-4 py-2 hover:border-encre hover:text-encre transition-colors flex items-center gap-2">
+              <button onClick={copyLink} className="handwriting text-lg text-crayon border-2 border-trait px-4 py-2 hover:border-encre hover:text-encre transition-colors flex items-center gap-2">
                 <Share2 size={14} /> {copied ? 'Copié ✓' : 'Partager'}
               </button>
               <Link to={`/event/${id}/admin`}>
-                <button className="handwriting text-base text-stone-500 border-2 border-trait px-4 py-2 hover:border-encre hover:text-encre transition-colors flex items-center gap-2">
+                <button className="handwriting text-lg text-crayon border-2 border-trait px-4 py-2 hover:border-encre hover:text-encre transition-colors flex items-center gap-2">
                   <Settings size={14} /> Admin
                 </button>
               </Link>
@@ -101,16 +139,16 @@ export const EventView = () => {
                 <th className="p-4 text-left sticky left-0 bg-white z-10 border-r border-trait w-40">
                   <span className="handwriting text-lg text-crayon">{allVoters.length} participant{allVoters.length > 1 ? 's' : ''}</span>
                 </th>
-                {event.options.map(opt => {
+                {options.map(opt => {
                   const isBest = opt.votes.length === maxVotes && maxVotes > 0;
                   return (
-                    <th key={opt.id} className={`p-4 text-center border-l border-trait min-w-[110px] ${isBest ? 'bg-red-50' : ''}`}>
-                      {isBest && <div className="handwriting text-rouge text-base mb-0.5">⭐ top</div>}
-                      <div className="text-xs uppercase tracking-wide text-stone-400">
+                    <th key={opt.id} className={`p-4 text-center border-l border-trait min-w-[110px] ${isBest ? 'bg-papier-fonce' : ''}`}>
+                      {isBest && <div className="handwriting text-rouge text-lg mb-0.5">⭐ top</div>}
+                      <div className="text-xs uppercase tracking-wide text-crayon">
                         {format(new Date(opt.date), 'EEE d MMM', { locale: fr })}
                       </div>
                       <div className="handwriting text-2xl text-encre mt-0.5">{opt.start_time || '—'}</div>
-                      <div className={`handwriting text-base mt-1 ${isBest ? 'text-rouge font-bold' : 'text-crayon'}`}>
+                      <div className={`handwriting text-lg mt-1 ${isBest ? 'text-rouge font-bold' : 'text-crayon'}`}>
                         {opt.votes.length} vote{opt.votes.length > 1 ? 's' : ''}
                       </div>
                     </th>
@@ -122,7 +160,7 @@ export const EventView = () => {
               {allVoters.map((voter, vi) => (
                 <tr key={voter} className={`border-b border-trait ${vi % 2 === 1 ? 'bg-papier/70' : ''}`}>
                   <td className="p-4 handwriting text-lg text-encre sticky left-0 bg-white z-10 border-r border-trait">{voter}</td>
-                  {event.options.map(opt => (
+                  {options.map(opt => (
                     <td key={opt.id} className="p-4 text-center border-l border-trait">
                       {opt.votes.includes(voter)
                         ? <Check size={20} className="text-rouge mx-auto" strokeWidth={3} />
@@ -142,11 +180,11 @@ export const EventView = () => {
                     onChange={e => setVoterName(e.target.value)}
                   />
                 </td>
-                {event.options.map(opt => (
+                {options.map(opt => (
                   <td key={opt.id} className="p-3 text-center border-l border-trait">
                     <button
                       type="button"
-                      onClick={() => toggleOption(opt.id)}
+                      onClick={e => toggleOption(opt.id, e)}
                       className={`w-9 h-9 border-2 flex items-center justify-center mx-auto transition-all ${
                         selectedOptions.includes(opt.id)
                           ? 'border-rouge bg-rouge text-white'
@@ -163,7 +201,7 @@ export const EventView = () => {
         </div>
 
         <div className="flex justify-between items-center gap-4">
-          <p className="handwriting text-lg text-stone-500">
+          <p className="handwriting text-lg text-crayon">
             {voted
               ? <span className="text-rouge">✓ C'est noté !</span>
               : voterName ? <>Je vote en tant que <strong className="text-encre">"{voterName}"</strong></> : 'Entre ton prénom pour voter'}

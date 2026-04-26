@@ -11,6 +11,13 @@
         }
       },
       {
+        "source": "/s/**",
+        "function": {
+          "functionId": "api",
+          "region": "europe-west1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
@@ -20,7 +27,7 @@
     {
       "source": "functions",
       "codebase": "default",
-      "ignore": ["node_modules", ".git", "lib"]
+      "ignore": ["node_modules", ".git", "src"]
     }
   ],
   "firestore": {

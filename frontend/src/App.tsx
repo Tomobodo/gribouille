@@ -11,6 +11,7 @@ function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/create" element={<CreateEvent />} />
         <Route path="/event/:id" element={<EventView />} />
+        <Route path="/s/:id" element={<EventView />} />
         <Route path="/event/:id/admin" element={<Admin />} />
       </Routes>
     </Router>
