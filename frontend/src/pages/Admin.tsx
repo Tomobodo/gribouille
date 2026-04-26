@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Trash2, AlertTriangle, Save, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 import { Navbar } from '../components/ui/Navbar';
-import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { TextArea } from '../components/ui/TextArea';
 import { Button } from '../components/ui/Button';
@@ -14,135 +13,117 @@ export const Admin = () => {
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [event, setEvent] = useState<any>(null);
-  
-  // Edit State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
   const [options, setOptions] = useState<any[]>([]);
-  
   const [error, setError] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'deleting'>('idle');
 
   const checkPassword = async () => {
-    setStatus('loading');
+    setStatus('loading'); setError('');
     try {
-      const res = await apiRequest(`/events/${id}/admin/login`, {
-        method: 'POST',
-        body: JSON.stringify({ password }),
-      });
-      if (res.success) {
-        const eventData = await apiRequest(`/events/${id}`);
-        setEvent(eventData);
-        setTitle(eventData.title);
-        setDescription(eventData.description || '');
-        setAddress(eventData.address || '');
-        setOptions(eventData.options.map((o: any) => ({ date: o.date, start_time: o.start_time })));
-        setIsAuthenticated(true);
-        setStatus('idle');
-      }
-    } catch (err) {
-      setError('Mot de passe incorrect');
-      setStatus('idle');
-    }
+      await apiRequest(`/events/${id}/admin/login`, { method: 'POST', body: JSON.stringify({ password }) });
+      const data = await apiRequest(`/events/${id}`);
+      setTitle(data.title); setDescription(data.description || ''); setAddress(data.address || '');
+      setOptions(data.options.map((o: any) => ({ date: o.date, start_time: o.start_time })));
+      setIsAuthenticated(true);
+    } catch { setError('Mot de passe incorrect 😬'); }
+    finally { setStatus('idle'); }
   };
 
   const sortOptions = (opts: any[]) => [...opts].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
   const addOption = (days: number = 1) => {
-    const lastDate = options.length > 0 ? new Date(options[options.length - 1].date) : new Date();
-    const newDate = format(addDays(lastDate, days), 'yyyy-MM-dd');
-    setOptions(sortOptions([...options, { date: newDate, start_time: '19:00' }]));
+    const last = options.length > 0 ? new Date(options[options.length - 1].date) : new Date();
+    setOptions(sortOptions([...options, { date: format(addDays(last, days), 'yyyy-MM-dd'), start_time: '19:00' }]));
   };
-
-  const updateOption = (index: number, field: string, value: string) => {
-    const newOptions = [...options];
-    newOptions[index][field] = value;
-    setOptions(sortOptions(newOptions));
-  };
-
-  const removeOption = (index: number) => setOptions(options.filter((_, i) => i !== index));
+  const updateOption = (i: number, f: string, v: string) => { const n = [...options]; n[i][f] = v; setOptions(sortOptions(n)); };
+  const removeOption = (i: number) => setOptions(options.filter((_, j) => j !== i));
 
   const handleUpdate = async () => {
     setStatus('saving');
     try {
-      await apiRequest(`/events/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ title, description, address, organizer_password: password, options }),
-      });
+      await apiRequest(`/events/${id}`, { method: 'PUT', body: JSON.stringify({ title, description, address, organizer_password: password, options }) });
       navigate(`/event/${id}`);
-    } catch (err: any) {
-      setError(err.message);
-      setStatus('idle');
-    }
+    } catch (err: any) { setError(err.message); setStatus('idle'); }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Es-tu sûr de vouloir supprimer cet événement ?')) return;
+    if (!window.confirm('Supprimer définitivement cet événement ?')) return;
     setStatus('deleting');
     try {
-      await apiRequest(`/events/${id}`, {
-        method: 'DELETE',
-        body: JSON.stringify({ password }),
-      });
+      await apiRequest(`/events/${id}`, { method: 'DELETE', body: JSON.stringify({ password }) });
       navigate('/');
-    } catch (err: any) {
-      setError(err.message);
-      setStatus('idle');
-    }
+    } catch (err: any) { setError(err.message); setStatus('idle'); }
   };
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-papier">
         <Navbar />
-        <main className="max-w-md mx-auto px-4 py-12">
-          <Card title="Authentification Admin">
-            <Input label="Mot de passe organisateur" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-            {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+        <main className="max-w-sm mx-auto px-6 py-24">
+          <h1 className="handwriting text-5xl text-encre mb-8">Espace orga 🔑</h1>
+          <div className="bg-white border-2 border-encre p-6">
+            <Input label="Mot de passe" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+            {error && <p className="handwriting text-rouge text-lg mb-4">{error}</p>}
             <Button fullWidth onClick={checkPassword} disabled={status === 'loading'}>
-              {status === 'loading' ? 'Vérification...' : 'Accéder au panel'}
+              {status === 'loading' ? <Loader2 size={16} className="animate-spin" /> : 'Accéder →'}
             </Button>
-          </Card>
+          </div>
         </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-papier">
       <Navbar />
-      <main className="max-w-2xl mx-auto px-4 py-12">
-        <Card title="Modifier l'événement">
+      <main className="max-w-2xl mx-auto px-6 py-12">
+        <h1 className="handwriting text-5xl text-encre mb-8">Modifier l'événement ✏️</h1>
+
+        <div className="bg-white border-2 border-encre p-8 mb-6">
           <Input label="Titre" value={title} onChange={e => setTitle(e.target.value)} />
           <TextArea label="Description" value={description} onChange={e => setDescription(e.target.value)} />
-          <Input label="Adresse" value={address} onChange={e => setAddress(e.target.value)} />
+          <Input label="Lieu" value={address} onChange={e => setAddress(e.target.value)} />
 
-          <div className="pt-6 border-t border-gray-100">
+          <div className="pt-6 mt-2 border-t-2 border-trait">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Dates</h3>
+              <span className="handwriting text-xl text-encre">Créneaux</span>
               <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => addOption(1)} className="text-xs">J+1</Button>
-                <Button variant="secondary" onClick={() => addOption(7)} className="text-xs">J+7</Button>
+                <button onClick={() => addOption(1)} className="handwriting text-base text-stone-500 border-2 border-trait px-3 py-1 hover:border-encre hover:text-encre transition-colors flex items-center gap-1">
+                  <Plus size={13} /> J+1
+                </button>
+                <button onClick={() => addOption(7)} className="handwriting text-base text-stone-500 border-2 border-trait px-3 py-1 hover:border-encre hover:text-encre transition-colors flex items-center gap-1">
+                  <Plus size={13} /> Sem+1
+                </button>
               </div>
             </div>
-            {options.map((opt, i) => (
-              <div key={i} className="flex gap-2 mb-2">
-                <input type="date" className="border rounded px-2 py-1 flex-1" value={opt.date} onChange={e => updateOption(i, 'date', e.target.value)} />
-                <input type="time" className="border rounded px-2 py-1 w-24" value={opt.start_time} onChange={e => updateOption(i, 'start_time', e.target.value)} />
-                <Button variant="danger" onClick={() => removeOption(i)}><Trash2 size={16}/></Button>
-              </div>
-            ))}
+            <div className="space-y-2">
+              {options.map((opt, i) => (
+                <div key={i} className="flex gap-3 items-center bg-papier border-2 border-trait px-4 py-3">
+                  <span className="handwriting text-rouge text-lg w-5">{i + 1}.</span>
+                  <input type="date" className="flex-1 bg-transparent text-encre text-sm focus:outline-none" value={opt.date} onChange={e => updateOption(i, 'date', e.target.value)} />
+                  <span className="text-trait">|</span>
+                  <input type="time" className="w-24 bg-transparent text-encre text-sm focus:outline-none" value={opt.start_time} onChange={e => updateOption(i, 'start_time', e.target.value)} />
+                  <button onClick={() => removeOption(i)} className="text-crayon hover:text-rouge transition-colors">
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
+        </div>
 
-          <div className="mt-8 flex gap-4">
-            <Button onClick={handleUpdate} disabled={status === 'saving'} className="flex-1 flex justify-center items-center gap-2">
-              {status === 'saving' ? <Loader2 className="animate-spin" /> : <Save size={18}/>} Enregistrer
-            </Button>
-            <Button variant="danger" onClick={handleDelete} disabled={status === 'deleting'}>Supprimer</Button>
-          </div>
-        </Card>
+        {error && <p className="handwriting text-rouge text-lg mb-4">{error}</p>}
+
+        <div className="flex gap-4">
+          <Button onClick={handleUpdate} disabled={status === 'saving'} className="flex-1">
+            {status === 'saving' ? <Loader2 size={16} className="animate-spin" /> : 'Enregistrer →'}
+          </Button>
+          <Button variant="danger" onClick={handleDelete} disabled={status === 'deleting'}>
+            {status === 'deleting' ? <Loader2 size={16} className="animate-spin" /> : 'Supprimer'}
+          </Button>
+        </div>
       </main>
     </div>
   );

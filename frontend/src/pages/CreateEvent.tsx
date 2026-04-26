@@ -3,11 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2 } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 import { Navbar } from '../components/ui/Navbar';
-import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { TextArea } from '../components/ui/TextArea';
 import { Button } from '../components/ui/Button';
-
 import { format, addDays } from 'date-fns';
 
 export const CreateEvent = () => {
@@ -21,42 +19,30 @@ export const CreateEvent = () => {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const sortOptions = (opts: { date: string, start_time: string }[]) => {
-    return [...opts].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  };
+  const sortOptions = (opts: { date: string; start_time: string }[]) =>
+    [...opts].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const addOption = (days: number = 1) => {
-    const lastDate = options.length > 0 ? new Date(options[options.length - 1].date) : new Date();
-    const newDate = format(addDays(lastDate, days), 'yyyy-MM-dd');
-    setOptions(sortOptions([...options, { date: newDate, start_time: '19:00' }]));
+    const last = options.length > 0 ? new Date(options[options.length - 1].date) : new Date();
+    setOptions(sortOptions([...options, { date: format(addDays(last, days), 'yyyy-MM-dd'), start_time: '19:00' }]));
   };
 
-  const removeOption = (index: number) => setOptions(options.filter((_, i) => i !== index));
+  const removeOption = (i: number) => setOptions(options.filter((_, j) => j !== i));
 
-  const updateOption = (index: number, field: string, value: string) => {
-    const newOptions = [...options];
-    (newOptions[index] as any)[field] = value;
-    setOptions(sortOptions(newOptions));
+  const updateOption = (i: number, field: string, value: string) => {
+    const next = [...options];
+    (next[i] as any)[field] = value;
+    setOptions(sortOptions(next));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (options.some(o => !o.date)) {
-      setError('Toutes les dates doivent être renseignées');
-      return;
-    }
-
+    if (options.some(o => !o.date)) { setError('Toutes les dates doivent être renseignées'); return; }
     setIsSubmitting(true);
     try {
       const res = await apiRequest('/events', {
         method: 'POST',
-        body: JSON.stringify({
-          title,
-          description,
-          address,
-          organizer_password: orgPassword,
-          options
-        }),
+        body: JSON.stringify({ title, description, address, organizer_password: orgPassword, options }),
       });
       navigate(`/event/${res.id}`);
     } catch (err: any) {
@@ -67,83 +53,42 @@ export const CreateEvent = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-papier">
       <Navbar />
-      <main className="max-w-2xl mx-auto px-4 py-12">
-        <Card title="Créer un nouvel événement">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input 
-              label="Titre de l'événement" 
-              placeholder="Ex: Soirée Raclette, Anniversaire de Tom..."
-              value={title} 
-              onChange={e => setTitle(e.target.value)} 
-              required 
-            />
-            
-            <TextArea 
-              label="Description (optionnel)" 
-              placeholder="Dis à tes potes de quoi il s'agit..."
-              value={description} 
-              onChange={e => setDescription(e.target.value)} 
-              rows={3} 
-            />
-            
-            <Input 
-              label="Lieu ou Adresse" 
-              placeholder="Ex: Chez moi, 12 rue du bar, ou un lien Google Maps..."
-              value={address} 
-              onChange={e => setAddress(e.target.value)} 
-            />
-            
-            <Input 
-              label="Mot de passe organisateur" 
-              type="password"
-              placeholder="Pour pouvoir gérer l'événement plus tard"
-              value={orgPassword} 
-              onChange={e => setOrgPassword(e.target.value)} 
-              required 
-            />
+      <main className="max-w-2xl mx-auto px-6 py-12">
+        <h1 className="handwriting text-5xl text-encre mb-8">Nouvel événement ✏️</h1>
 
-            <div className="pt-6 border-t border-gray-100">
+        <div className="bg-white border-2 border-encre p-8">
+          <form onSubmit={handleSubmit}>
+            <Input label="C'est quoi ?" placeholder="Soirée raclette, réu, week-end…" value={title} onChange={e => setTitle(e.target.value)} required />
+            <TextArea label="Des détails ? (optionnel)" placeholder="Quelques mots pour le groupe…" value={description} onChange={e => setDescription(e.target.value)} rows={3} />
+            <Input label="Où ?" placeholder="Adresse, lieu, lien visio…" value={address} onChange={e => setAddress(e.target.value)} />
+            <Input label="Mot de passe organisateur" type="password" placeholder="Pour modifier l'event plus tard" value={orgPassword} onChange={e => setOrgPassword(e.target.value)} required />
+
+            {/* Dates */}
+            <div className="mt-6 pt-6 border-t-2 border-trait">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Dates et horaires</h3>
+                <span className="handwriting text-xl text-encre">Les créneaux proposés</span>
                 <div className="flex gap-2">
-                  <Button type="button" variant="secondary" onClick={() => addOption(1)} className="text-sm py-1">
-                    <Plus size={16} className="inline mr-1" /> J+1
-                  </Button>
-                  <Button type="button" variant="secondary" onClick={() => addOption(7)} className="text-sm py-1">
-                    <Plus size={16} className="inline mr-1" /> J+7
-                  </Button>
+                  <button type="button" onClick={() => addOption(1)} className="handwriting text-base text-stone-500 border-2 border-trait px-3 py-1 hover:border-encre hover:text-encre transition-colors flex items-center gap-1">
+                    <Plus size={14} /> J+1
+                  </button>
+                  <button type="button" onClick={() => addOption(7)} className="handwriting text-base text-stone-500 border-2 border-trait px-3 py-1 hover:border-encre hover:text-encre transition-colors flex items-center gap-1">
+                    <Plus size={14} /> Sem+1
+                  </button>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {options.map((opt, index) => (
-                  <div key={index} className="flex gap-2 items-start bg-gray-50 p-3 rounded-lg border border-gray-200">
-                    <div className="flex-1">
-                      <input 
-                        type="date" 
-                        className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" 
-                        value={opt.date} 
-                        onChange={e => updateOption(index, 'date', e.target.value)} 
-                        required 
-                      />
-                    </div>
-                    <div className="w-32">
-                      <input 
-                        type="time" 
-                        className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500" 
-                        value={opt.start_time} 
-                        onChange={e => updateOption(index, 'start_time', e.target.value)} 
-                      />
-                    </div>
+              <div className="space-y-2">
+                {options.map((opt, i) => (
+                  <div key={i} className="flex gap-3 items-center bg-papier border-2 border-trait px-4 py-3 hover:border-encre transition-colors">
+                    <span className="handwriting text-rouge text-lg w-5">{i + 1}.</span>
+                    <input type="date" className="flex-1 bg-transparent text-encre text-sm focus:outline-none" value={opt.date} onChange={e => updateOption(i, 'date', e.target.value)} required />
+                    <span className="text-trait">|</span>
+                    <input type="time" className="w-24 bg-transparent text-encre text-sm focus:outline-none" value={opt.start_time} onChange={e => updateOption(i, 'start_time', e.target.value)} />
                     {options.length > 1 && (
-                      <button 
-                        type="button" 
-                        onClick={() => removeOption(index)} 
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                      >
-                        <Trash2 size={18} />
+                      <button type="button" onClick={() => removeOption(i)} className="text-crayon hover:text-rouge transition-colors">
+                        <Trash2 size={15} />
                       </button>
                     )}
                   </div>
@@ -151,15 +96,19 @@ export const CreateEvent = () => {
               </div>
             </div>
 
-            {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-100">{error}</div>}
-            
-            <div className="pt-6">
+            {error && (
+              <div className="mt-4 border-l-4 border-rouge bg-red-50 px-4 py-3 text-rouge text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="mt-8">
               <Button type="submit" fullWidth disabled={isSubmitting}>
-                {isSubmitting ? 'Création en cours...' : "Créer l'événement"}
+                {isSubmitting ? 'Création en cours…' : 'Créer le sondage →'}
               </Button>
             </div>
           </form>
-        </Card>
+        </div>
       </main>
     </div>
   );

@@ -5,29 +5,20 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
-export const Button: React.FC<ButtonProps> = ({ 
-  children, 
-  variant = 'primary', 
-  fullWidth = false, 
-  className = '', 
-  ...props 
+export const Button: React.FC<ButtonProps> = ({
+  children, variant = 'primary', fullWidth = false, className = '', ...props
 }) => {
-  const baseStyles = 'px-4 py-2 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
-  
+  const base = 'handwriting inline-flex items-center justify-center gap-2 px-5 py-2 text-lg transition-colors duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-rouge border border-encre/60';
+
   const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
-    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-500',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
-    ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-500',
+    primary:   'bg-rouge text-papier border-rouge hover:bg-rouge/80 hover:border-rouge/80',
+    secondary: 'bg-transparent text-encre hover:bg-papier-fonce',
+    danger:    'bg-transparent border-rouge text-rouge hover:bg-rouge hover:text-papier',
+    ghost:     'border-transparent text-crayon hover:text-encre',
   };
 
-  const widthStyle = fullWidth ? 'w-full' : '';
-
   return (
-    <button 
-      className={`${baseStyles} ${variants[variant]} ${widthStyle} ${className}`}
-      {...props}
-    >
+    <button className={`${base} ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className}`} {...props}>
       {children}
     </button>
   );
