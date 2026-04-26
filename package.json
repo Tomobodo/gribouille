@@ -1,0 +1,15 @@
+{
+  "name": "gribouille",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run build:functions && concurrently -n functions,emulator,frontend -c blue,yellow,green \"npm run watch:functions\" \"firebase emulators:start --only functions,firestore\" \"npm run dev:frontend\"",
+    "build:functions": "cd functions && npm run build",
+    "watch:functions": "cd functions && npm run build:watch",
+    "dev:frontend": "cd frontend && npm run dev",
+    "deploy": "npm run build:functions && cd frontend && npm run build && cd .. && firebase deploy"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

@@ -103,39 +103,39 @@ export const EventView = () => {
   const allVoters = Array.from(new Set(event.options.flatMap(o => o.votes)));
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-12">
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-gray-900 mb-2">{event.title}</h1>
-            {event.description && <p className="text-gray-600 text-lg mb-4">{event.description}</p>}
+            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-1">{event.title}</h1>
+            {event.description && <p className="text-gray-600 mb-2">{event.description}</p>}
             {event.address && (
-              <div className="flex items-center text-blue-600 hover:text-blue-800 transition-colors">
-                <MapPin size={18} className="mr-1" />
-                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="font-medium underline decoration-2 underline-offset-4">
+              <div className="flex items-center text-blue-600 text-sm">
+                <MapPin size={16} className="mr-1" />
+                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
                   {event.address}
                 </a>
               </div>
             )}
           </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={copyLink} className="flex items-center gap-2">
-              <Share2 size={18} />
-              {copied ? 'Copié !' : 'Partager le lien'}
+          <div className="flex gap-2 w-full md:w-auto">
+            <Button variant="secondary" onClick={copyLink} className="flex-1 md:flex-none flex items-center justify-center gap-2">
+              <Share2 size={16} />
+              {copied ? 'Copié !' : 'Partager'}
             </Button>
-            <Link to={`/event/${id}/admin`}>
-              <Button variant="ghost" className="flex items-center gap-2">
-                <Crown size={18} />
+            <Link to={`/event/${id}/admin`} className="flex-1 md:flex-none">
+              <Button variant="ghost" className="w-full flex items-center justify-center gap-2">
+                <Crown size={16} />
                 Admin
               </Button>
             </Link>
           </div>
         </div>
 
-        <Card className="overflow-hidden p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+        <Card className="p-0 shadow-lg border-0">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full border-collapse min-w-[500px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="p-4 text-left text-sm font-bold text-gray-900 sticky left-0 bg-gray-50 z-10 w-48">
