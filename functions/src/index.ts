@@ -66,7 +66,7 @@ app.get('/api/events/:id', async (req, res) => {
     if (!eventSnap.exists) { res.status(404).json({ error: 'Event not found' }); return; }
 
     const data = eventSnap.data()!;
-    const event = { id: eventSnap.id, title: data.title, description: data.description, address: data.address };
+    const event = { id: eventSnap.id, title: data.title, description: data.description, address: data.address, confirmed_option_id: data.confirmed_option_id ?? null };
 
     const optionsSnap = await db.collection('events').doc(id).collection('options').get();
     const options = await Promise.all(optionsSnap.docs.map(async (optDoc) => {
@@ -132,21 +132,84 @@ app.put('/api/events/:id', async (req, res) => {
 
     await eventRef.update({ title: title.trim(), description: description?.trim() ?? '', address: address?.trim() ?? '' });
 
-    const oldOptions = await eventRef.collection('options').get();
+    const existingSnap = await eventRef.collection('options').get();
+    const existingMap = new Map(existingSnap.docs.map(d => [d.id, d.ref]));
+
+    // IDs of incoming options that already exist in Firestore (votes are preserved)
+    const keptIds = new Set(
+      (options as any[]).filter(o => o.id && existingMap.has(o.id)).map((o: any) => o.id)
+    );
+
+    // Delete options that were removed (and their votes)
     const deleteBatch = db.batch();
-    for (const optDoc of oldOptions.docs) {
-      const votes = await optDoc.ref.collection('votes').get();
-      votes.docs.forEach((v) => deleteBatch.delete(v.ref));
-      deleteBatch.delete(optDoc.ref);
+    for (const [optId, optRef] of existingMap) {
+      if (!keptIds.has(optId)) {
+        const votes = await optRef.collection('votes').get();
+        votes.docs.forEach(v => deleteBatch.delete(v.ref));
+        deleteBatch.delete(optRef);
+      }
     }
     await deleteBatch.commit();
 
-    for (const opt of options) {
-      await eventRef.collection('options').doc(uuidv4()).set({
-        date: opt.date,
-        start_time: opt.start_time ?? null,
-      });
+    // Update existing options, create new ones
+    for (const opt of options as any[]) {
+      if (opt.id && existingMap.has(opt.id)) {
+        await existingMap.get(opt.id)!.update({ date: opt.date, start_time: opt.start_time ?? null });
+      } else {
+        await eventRef.collection('options').doc(uuidv4()).set({ date: opt.date, start_time: opt.start_time ?? null });
+      }
     }
+
+    // Clear confirmed_option_id only if the confirmed option was deleted
+    const confirmedId = eventSnap.data()!.confirmed_option_id;
+    if (confirmedId && !keptIds.has(confirmedId)) {
+      await eventRef.update({ confirmed_option_id: null });
+    }
+
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/events/:id/confirm', async (req, res) => {
+  const { id } = req.params;
+  const { password, option_id } = req.body;
+  if (!password) { res.status(400).json({ error: 'password requis' }); return; }
+  if (!option_id) { res.status(400).json({ error: 'option_id requis' }); return; }
+
+  try {
+    const eventRef = db.collection('events').doc(id);
+    const eventSnap = await eventRef.get();
+    if (!eventSnap.exists) { res.status(404).json({ error: 'Event not found' }); return; }
+
+    const valid = await bcrypt.compare(password, eventSnap.data()!.organizer_password);
+    if (!valid) { res.status(401).json({ error: 'Unauthorized' }); return; }
+
+    const optionSnap = await eventRef.collection('options').doc(option_id).get();
+    if (!optionSnap.exists) { res.status(400).json({ error: 'option invalide' }); return; }
+
+    await eventRef.update({ confirmed_option_id: option_id });
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/events/:id/unconfirm', async (req, res) => {
+  const { id } = req.params;
+  const { password } = req.body;
+  if (!password) { res.status(400).json({ error: 'password requis' }); return; }
+
+  try {
+    const eventRef = db.collection('events').doc(id);
+    const eventSnap = await eventRef.get();
+    if (!eventSnap.exists) { res.status(404).json({ error: 'Event not found' }); return; }
+
+    const valid = await bcrypt.compare(password, eventSnap.data()!.organizer_password);
+    if (!valid) { res.status(401).json({ error: 'Unauthorized' }); return; }
+
+    await eventRef.update({ confirmed_option_id: null });
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: 'Erreur serveur' });

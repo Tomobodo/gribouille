@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { usePageMeta } from '../hooks/usePageMeta';
 import confetti from 'canvas-confetti';
 import { useParams, Link } from 'react-router-dom';
-import { MapPin, Check, Share2, Settings } from 'lucide-react';
+import { MapPin, Check, Share2, Settings, CheckCircle2 } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -11,7 +11,7 @@ import { Button } from '../components/ui/Button';
 import Markdown from 'react-markdown';
 
 interface Option { id: string; date: string; start_time: string; votes: string[]; }
-interface Event { id: string; title: string; description: string; address: string; options: Option[]; }
+interface Event { id: string; title: string; description: string; address: string; options: Option[]; confirmed_option_id?: string | null; }
 
 export const EventView = () => {
   const { id } = useParams();
@@ -131,85 +131,120 @@ export const EventView = () => {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white border border-trait overflow-x-auto mb-4">
-          <table className="w-full border-collapse min-w-[500px]">
-            <thead>
-              <tr className="border-b border-trait">
-                <th className="p-4 text-left sticky left-0 bg-white z-10 border-r border-trait w-40">
-                  <span className="handwriting text-lg text-crayon">{allVoters.length} participant{allVoters.length > 1 ? 's' : ''}</span>
-                </th>
-                {options.map(opt => {
-                  const isBest = opt.votes.length === maxVotes && maxVotes > 0;
-                  return (
-                    <th key={opt.id} className={`p-4 text-center border-l border-trait min-w-[110px] ${isBest ? 'bg-papier-fonce' : ''}`}>
-                      {isBest && <div className="handwriting text-rouge text-lg mb-0.5">⭐ top</div>}
-                      <div className="text-xs uppercase tracking-wide text-crayon">
-                        {format(new Date(opt.date), 'EEE d MMM', { locale: fr })}
-                      </div>
-                      <div className="handwriting text-2xl text-encre mt-0.5">{opt.start_time || '—'}</div>
-                      <div className={`handwriting text-lg mt-1 ${isBest ? 'text-rouge font-bold' : 'text-crayon'}`}>
-                        {opt.votes.length} vote{opt.votes.length > 1 ? 's' : ''}
-                      </div>
+        {event.confirmed_option_id ? (() => {
+          const confirmedOpt = options.find(o => o.id === event.confirmed_option_id);
+          if (!confirmedOpt) return null;
+          const d = format(new Date(confirmedOpt.date + 'T00:00:00'), 'EEEE d MMMM yyyy', { locale: fr });
+          const confirmedVoters = confirmedOpt.votes;
+          return (
+            <div className="bg-white border-2 border-encre p-8">
+              <div className="flex items-center gap-2 mb-8">
+                <CheckCircle2 size={18} className="text-rouge flex-shrink-0" />
+                <span className="handwriting text-2xl text-encre">Date confirmée par l'organisateur</span>
+              </div>
+              <div className="text-center py-4">
+                <div className="handwriting text-4xl md:text-5xl text-encre leading-tight">
+                  {d.charAt(0).toUpperCase() + d.slice(1)}
+                </div>
+                <div className="handwriting text-3xl text-rouge mt-3">{confirmedOpt.start_time || '—'}</div>
+              </div>
+              {confirmedVoters.length > 0 && (
+                <div className="mt-8 border-t-2 border-trait pt-6">
+                  <span className="handwriting text-xl text-encre mb-3 block">
+                    {confirmedVoters.length} participant{confirmedVoters.length > 1 ? 's' : ''} disponible{confirmedVoters.length > 1 ? 's' : ''}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {confirmedVoters.map(voter => (
+                      <span key={voter} className="handwriting text-lg bg-papier border border-trait px-3 py-1 text-encre">{voter}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })() : (
+          <>
+            {/* Table */}
+            <div className="bg-white border border-trait overflow-x-auto mb-4">
+              <table className="w-full border-collapse min-w-[500px]">
+                <thead>
+                  <tr className="border-b border-trait">
+                    <th className="p-4 text-left sticky left-0 bg-white z-10 border-r border-trait w-40">
+                      <span className="handwriting text-lg text-crayon">{allVoters.length} participant{allVoters.length > 1 ? 's' : ''}</span>
                     </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {allVoters.map((voter, vi) => (
-                <tr key={voter} className={`border-b border-trait ${vi % 2 === 1 ? 'bg-papier/70' : ''}`}>
-                  <td className="p-4 handwriting text-lg text-encre sticky left-0 bg-white z-10 border-r border-trait">{voter}</td>
-                  {options.map(opt => (
-                    <td key={opt.id} className="p-4 text-center border-l border-trait">
-                      {opt.votes.includes(voter)
-                        ? <Check size={20} className="text-rouge mx-auto" strokeWidth={3} />
-                        : <span className="text-trait">·</span>}
-                    </td>
+                    {options.map(opt => {
+                      const isBest = opt.votes.length === maxVotes && maxVotes > 0;
+                      return (
+                        <th key={opt.id} className={`p-4 text-center border-l border-trait min-w-[110px] ${isBest ? 'bg-papier-fonce' : ''}`}>
+                          {isBest && <div className="handwriting text-rouge text-lg mb-0.5">⭐ top</div>}
+                          <div className="text-xs uppercase tracking-wide text-crayon">
+                            {format(new Date(opt.date), 'EEE d MMM', { locale: fr })}
+                          </div>
+                          <div className="handwriting text-2xl text-encre mt-0.5">{opt.start_time || '—'}</div>
+                          <div className={`handwriting text-lg mt-1 ${isBest ? 'text-rouge font-bold' : 'text-crayon'}`}>
+                            {opt.votes.length} vote{opt.votes.length > 1 ? 's' : ''}
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allVoters.map((voter, vi) => (
+                    <tr key={voter} className={`border-b border-trait ${vi % 2 === 1 ? 'bg-papier/70' : ''}`}>
+                      <td className="p-4 handwriting text-lg text-encre sticky left-0 bg-white z-10 border-r border-trait">{voter}</td>
+                      {options.map(opt => (
+                        <td key={opt.id} className="p-4 text-center border-l border-trait">
+                          {opt.votes.includes(voter)
+                            ? <Check size={20} className="text-rouge mx-auto" strokeWidth={3} />
+                            : <span className="text-trait">·</span>}
+                        </td>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
-              ))}
 
-              {/* Vote row */}
-              <tr className="border-t border-trait bg-papier">
-                <td className="p-3 sticky left-0 bg-papier z-10 border-r border-trait">
-                  <input
-                    className="w-full bg-white border-2 border-trait px-3 py-2 text-encre text-sm placeholder-crayon focus:outline-none focus:border-encre transition-colors"
-                    placeholder="Ton prénom…"
-                    value={voterName}
-                    onChange={e => setVoterName(e.target.value)}
-                  />
-                </td>
-                {options.map(opt => (
-                  <td key={opt.id} className="p-3 text-center border-l border-trait">
-                    <button
-                      type="button"
-                      onClick={e => toggleOption(opt.id, e)}
-                      className={`w-9 h-9 border-2 flex items-center justify-center mx-auto transition-all ${
-                        selectedOptions.includes(opt.id)
-                          ? 'border-rouge bg-rouge text-white'
-                          : 'border-trait text-transparent hover:border-encre'
-                      }`}
-                    >
-                      <Check size={16} strokeWidth={3} />
-                    </button>
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                  {/* Vote row */}
+                  <tr className="border-t border-trait bg-papier">
+                    <td className="p-3 sticky left-0 bg-papier z-10 border-r border-trait">
+                      <input
+                        className="w-full bg-white border-2 border-trait px-3 py-2 text-encre text-sm placeholder-crayon focus:outline-none focus:border-encre transition-colors"
+                        placeholder="Ton prénom…"
+                        value={voterName}
+                        onChange={e => setVoterName(e.target.value)}
+                      />
+                    </td>
+                    {options.map(opt => (
+                      <td key={opt.id} className="p-3 text-center border-l border-trait">
+                        <button
+                          type="button"
+                          onClick={e => toggleOption(opt.id, e)}
+                          className={`w-9 h-9 border-2 flex items-center justify-center mx-auto transition-all ${
+                            selectedOptions.includes(opt.id)
+                              ? 'border-rouge bg-rouge text-white'
+                              : 'border-trait text-transparent hover:border-encre'
+                          }`}
+                        >
+                          <Check size={16} strokeWidth={3} />
+                        </button>
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
-        <div className="flex justify-between items-center gap-4">
-          <p className="handwriting text-lg text-crayon">
-            {voted
-              ? <span className="text-rouge">✓ C'est noté !</span>
-              : voterName ? <>Je vote en tant que <strong className="text-encre">"{voterName}"</strong></> : 'Entre ton prénom pour voter'}
-          </p>
-          <Button onClick={handleVote} disabled={!voterName || selectedOptions.length === 0}>
-            Voter →
-          </Button>
-        </div>
+            <div className="flex justify-between items-center gap-4">
+              <p className="handwriting text-lg text-crayon">
+                {voted
+                  ? <span className="text-rouge">✓ C'est noté !</span>
+                  : voterName ? <>Je vote en tant que <strong className="text-encre">"{voterName}"</strong></> : 'Entre ton prénom pour voter'}
+              </p>
+              <Button onClick={handleVote} disabled={!voterName || selectedOptions.length === 0}>
+                Voter →
+              </Button>
+            </div>
+          </>
+        )}
 
         {error && <p className="mt-4 text-sm text-rouge">{error}</p>}
       </main>

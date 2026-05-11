@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Copy, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Copy, Loader2, RotateCcw } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 import { Navbar } from '../components/ui/Navbar';
 import { Input } from '../components/ui/Input';
@@ -25,6 +25,8 @@ export const Admin = () => {
   const [editingDate, setEditingDate] = useState<number | null>(null);
   const [editingTime, setEditingTime] = useState<number | null>(null);
   const [showRecurring, setShowRecurring] = useState(false);
+  const [confirmedOptionId, setConfirmedOptionId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const dateRef = useRef<HTMLInputElement | null>(null);
   const timeRef = useRef<HTMLInputElement | null>(null);
 
@@ -50,8 +52,9 @@ export const Admin = () => {
       await apiRequest(`/events/${id}/admin/login`, { method: 'POST', body: JSON.stringify({ password }) });
       const data = await apiRequest(`/events/${id}`);
       setTitle(data.title); setDescription(data.description || ''); setAddress(data.address || '');
-      setOptions(data.options.map((o: any) => ({ ...o })));
+      setOptions(sortOptions(data.options.map((o: any) => ({ ...o }))));
       setAllVoters(Array.from(new Set(data.options.flatMap((o: any) => o.votes))));
+      setConfirmedOptionId(data.confirmed_option_id ?? null);
       setIsAuthenticated(true);
     } catch { setError('Mot de passe incorrect 😬'); }
     finally { setStatus('idle'); }
@@ -89,6 +92,24 @@ export const Admin = () => {
     return d.charAt(0).toUpperCase() + d.slice(1);
   };
 
+  const handleConfirmDate = async (optionId: string) => {
+    setConfirmingId(optionId);
+    try {
+      await apiRequest(`/events/${id}/confirm`, { method: 'POST', body: JSON.stringify({ password, option_id: optionId }) });
+      setConfirmedOptionId(optionId);
+    } catch (err: any) { setError(err.message); }
+    finally { setConfirmingId(null); }
+  };
+
+  const handleUnconfirmDate = async () => {
+    setConfirmingId('unconfirm');
+    try {
+      await apiRequest(`/events/${id}/unconfirm`, { method: 'POST', body: JSON.stringify({ password }) });
+      setConfirmedOptionId(null);
+    } catch (err: any) { setError(err.message); }
+    finally { setConfirmingId(null); }
+  };
+
   const handleAddRecurring = (dates: { date: string; start_time: string }[]) => {
     setOptions(sortOptions([...options, ...dates]));
     setShowRecurring(false);
@@ -124,6 +145,8 @@ export const Admin = () => {
       </button>
     </div>
   );
+
+  const maxVotes = options.length > 0 ? Math.max(...options.map(o => o.votes?.length ?? 0)) : 0;
 
   if (!isAuthenticated) {
     return (
@@ -163,6 +186,21 @@ export const Admin = () => {
           <Input label="Lieu" value={address} onChange={e => setAddress(e.target.value)} />
 
           <div className="pt-6 mt-2 border-t-2 border-trait">
+            {confirmedOptionId && (
+              <div className="flex items-center justify-between mb-4 bg-papier border-2 border-encre px-4 py-2">
+                <span className="handwriting text-lg text-encre">
+                  ✓ Date confirmée — les participants voient uniquement ce créneau
+                </span>
+                <button
+                  type="button"
+                  onClick={handleUnconfirmDate}
+                  disabled={confirmingId === 'unconfirm'}
+                  className="handwriting text-base text-crayon border border-trait px-3 py-1 hover:border-encre hover:text-encre transition-colors flex items-center gap-1"
+                >
+                  {confirmingId === 'unconfirm' ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />} Repasser en vote
+                </button>
+              </div>
+            )}
             <div className="flex justify-between items-center mb-4">
               <span className="handwriting text-xl text-encre">Créneaux</span>
               <div className="flex gap-2">
@@ -176,63 +214,88 @@ export const Admin = () => {
             </div>
 
             <div className="space-y-2">
-              {options.map((opt, i) => (
-                <div key={i} className="bg-papier border-2 border-trait">
-                  <div className="flex gap-3 items-center px-4 py-3">
-                    <span className="handwriting text-rouge text-lg w-5 flex-shrink-0">{i + 1}.</span>
-
-                    {editingDate === i ? (
-                      <input
-                        ref={dateRef}
-                        type="date"
-                        className="flex-1 bg-white border border-trait px-2 py-1 text-encre text-sm focus:outline-none focus:border-encre"
-                        value={opt.date}
-                        onChange={e => { updateOption(i, 'date', e.target.value); setEditingDate(null); }}
-                        onBlur={() => setEditingDate(null)}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setEditingDate(i)}
-                        className="handwriting text-encre text-lg text-left flex-1 hover:text-rouge transition-colors"
-                      >
-                        {formatDate(opt.date)}
-                      </button>
-                    )}
-
-                    <div className="hidden md:flex">{rowActionButtons(i)}</div>
-
-                    <span className="text-trait flex-shrink-0">|</span>
-
-                    {editingTime === i ? (
-                      <input
-                        ref={timeRef}
-                        type="time"
-                        className="w-20 bg-white border border-trait px-2 py-1 text-encre text-sm focus:outline-none focus:border-encre flex-shrink-0"
-                        value={opt.start_time}
-                        onChange={e => { updateOption(i, 'start_time', e.target.value); setEditingTime(null); }}
-                        onBlur={() => setEditingTime(null)}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setEditingTime(i)}
-                        className="handwriting text-encre text-lg flex-shrink-0 hover:text-rouge transition-colors w-16 text-center"
-                      >
-                        {opt.start_time || '—'}
-                      </button>
-                    )}
-
-                    <button onClick={() => removeOption(i)} className="text-crayon hover:text-rouge transition-colors flex-shrink-0">
-                      <Trash2 size={15} />
-                    </button>
+              {options.map((opt, i) => {
+                const voteCount = opt.votes?.length ?? 0;
+                const isTop = maxVotes > 0 && voteCount === maxVotes;
+                const isConfirmed = !!(opt.id && confirmedOptionId === opt.id);
+                return (
+                  <div key={i} className={`border-2 ${isConfirmed ? 'bg-white border-encre' : 'bg-papier border-trait'}`}>
+                    {/* Ligne 1 : numéro + date + badge votes */}
+                    <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+                      <span className="handwriting text-rouge text-lg w-5 flex-shrink-0">{i + 1}.</span>
+                      {editingDate === i ? (
+                        <input
+                          ref={dateRef}
+                          type="date"
+                          className="flex-1 bg-white border border-trait px-2 py-1 text-encre text-sm focus:outline-none focus:border-encre"
+                          value={opt.date}
+                          onChange={e => { updateOption(i, 'date', e.target.value); setEditingDate(null); }}
+                          onBlur={() => setEditingDate(null)}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingDate(i)}
+                          className="handwriting text-encre text-xl text-left flex-1 hover:text-rouge transition-colors leading-tight"
+                        >
+                          {formatDate(opt.date)}
+                        </button>
+                      )}
+                      {voteCount > 0 && (
+                        <span className={`handwriting text-base flex-shrink-0 px-2 py-0.5 border ${isTop ? 'text-rouge border-rouge bg-white' : 'text-crayon border-trait'}`}>
+                          {isTop ? '⭐ ' : ''}{voteCount}
+                        </span>
+                      )}
+                    </div>
+                    {/* Ligne 2 : heure + actions + valider + supprimer */}
+                    <div className="flex items-center gap-2 px-4 pb-3 pl-11 flex-wrap">
+                      {editingTime === i ? (
+                        <input
+                          ref={timeRef}
+                          type="time"
+                          className="w-24 bg-white border border-trait px-2 py-1 text-encre text-sm focus:outline-none focus:border-encre"
+                          value={opt.start_time}
+                          onChange={e => { updateOption(i, 'start_time', e.target.value); setEditingTime(null); }}
+                          onBlur={() => setEditingTime(null)}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingTime(i)}
+                          className="handwriting text-encre text-lg hover:text-rouge transition-colors w-14 text-left"
+                        >
+                          {opt.start_time || '—'}
+                        </button>
+                      )}
+                      <span className="text-trait">|</span>
+                      {rowActionButtons(i)}
+                      <div className="flex items-center gap-1 ml-auto">
+                        {opt.id && (
+                          <button
+                            type="button"
+                            onClick={() => isConfirmed ? handleUnconfirmDate() : handleConfirmDate(opt.id)}
+                            disabled={confirmingId === opt.id || confirmingId === 'unconfirm'}
+                            className={`handwriting text-base border px-2 py-0.5 transition-colors whitespace-nowrap ${
+                              isConfirmed
+                                ? 'text-rouge border-rouge bg-white'
+                                : confirmedOptionId
+                                  ? 'text-trait border-trait cursor-not-allowed'
+                                  : 'text-crayon border-trait hover:border-encre hover:text-encre'
+                            }`}
+                          >
+                            {confirmingId === opt.id || (isConfirmed && confirmingId === 'unconfirm')
+                              ? <Loader2 size={12} className="animate-spin inline" />
+                              : isConfirmed ? '✓ Confirmée' : 'Valider'}
+                          </button>
+                        )}
+                        <button type="button" onClick={() => removeOption(i)} className="text-crayon hover:text-rouge transition-colors p-1">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="flex md:hidden gap-1 px-3 pb-2 border-t border-trait pt-2">
-                    {rowActionButtons(i)}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
           <div className="pt-6 mt-2 border-t-2 border-trait">
